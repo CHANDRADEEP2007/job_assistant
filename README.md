@@ -22,7 +22,7 @@ AI-powered job application agent with a Flask web dashboard. It searches job boa
 
 2. **Configure**
 
-   - Copy `.env.example` to `.env` and set `GEMINI_API_KEY`
+   - Copy `.env.example` to `.env` and set `GEMINI_API_KEY` (never commit `.env`)
    - Copy `profile.example.json` to `profile.json` and fill in your details
    - Place your resume as `Resume.pdf` in the project root
    - Adjust `settings.json` for search queries, locations, and thresholds
@@ -50,4 +50,4 @@ AI-powered job application agent with a Flask web dashboard. It searches job boa
 ## Notes
 
 - Excel tracker files (`*.xlsx`) are created at runtime and are not committed (see `.gitignore`).
-- Do not commit `.env`, `profile.json`, or browser profile directories.
+- Do not commit `.env`, `profile.json`, API keys, or browser profile directories.
