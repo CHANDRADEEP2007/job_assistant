@@ -1,0 +1,7 @@
+google-genai
+playwright
+openpyxl
+pandas
+python-dotenv
+PyPDF2
+flask

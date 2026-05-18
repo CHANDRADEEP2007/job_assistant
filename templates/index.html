@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexApply Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ===== ALERT BANNERS (Fix #2 & #4) ===== -->
+    <div id="session-expired-banner" class="alert-banner danger" style="display:none;">
+        <strong>Session Expired</strong> - <span id="session-msg"></span>
+        <button class="btn small" onclick="document.getElementById('session-expired-banner').style.display='none'">Dismiss</button>
+    </div>
+    <div id="bot-challenge-banner" class="alert-banner danger" style="display:none;">
+        <strong>Bot Check Detected</strong> - Open the browser window &amp; solve the challenge manually, then click Resume.
+        <button id="resume-btn" class="btn small primary">Resume Agent</button>
+        <button class="btn small" onclick="document.getElementById('bot-challenge-banner').style.display='none'">Dismiss</button>
+    </div>
+    <div id="agent-crash-banner" class="alert-banner danger" style="display:none;">
+        <strong>Agent Error</strong> - <span id="crash-msg"></span>. Please close the browser and rerun the agent.
+        <button class="btn small" onclick="document.getElementById('agent-crash-banner').style.display='none'">Dismiss</button>
+    </div>
+    <div id="apply-paused-banner" class="alert-banner warning apply-paused-banner" style="display:none;">
+        <div class="apply-paused-inner">
+            <div class="apply-paused-text">
+                <strong>Form paused — manual step needed</strong>
+                <p><span id="pause-company"></span> — <span id="pause-role"></span></p>
+                <p id="pause-detail" class="pause-detail"></p>
+                <p id="pause-fields" class="pause-fields"></p>
+            </div>
+            <div class="apply-paused-side">
+                <img id="pause-screenshot" class="pause-screenshot" alt="Stuck form screenshot" style="display:none;" />
+                <button id="continue-pause-btn" class="btn small primary">Continue after I fixed the form</button>
+                <button class="btn small" onclick="document.getElementById('apply-paused-banner').style.display='none'">Dismiss banner</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== REVIEW GATE CARD (Fix #3) ===== -->
+    <div id="review-overlay" class="overlay" style="display:none;">
+        <div class="review-card">
+            <div class="review-header">
+                <h3>Application Review Required</h3>
+                <div class="review-timer" id="review-timer">5:00</div>
+            </div>
+            <div id="review-body">
+                <p><strong>Company:</strong> <span id="rev-company"></span></p>
+                <p><strong>Role:</strong> <span id="rev-role"></span></p>
+                <p><strong>Match Score:</strong> <span id="rev-score"></span>%</p>
+                <div id="rev-form-data" class="form-data-list"></div>
+            </div>
+            <div class="review-actions">
+                <button id="approve-btn" class="btn primary">Approve & Submit</button>
+                <button id="reject-btn" class="btn danger">Reject</button>
+            </div>
+            <p class="review-hint">Skips in <span id="review-timer-hint">5:00</span> if no approval is given.</p>
+        </div>
+    </div>
+
+    <!-- ===== LEDGER QUESTION TOAST (Fix #3 & #6) ===== -->
+    <div id="ledger-toast" class="ledger-toast" style="display:none;">
+        <div class="ledger-toast-header">
+            <span>Agent needs your answer</span>
+            <span id="ledger-timer" class="toast-timer">2:00</span>
+        </div>
+        <p id="ledger-question-text" class="ledger-question"></p>
+        <textarea id="ledger-answer-input" rows="3" placeholder="Type your answer..."></textarea>
+        <div class="ledger-toast-actions">
+            <button id="ledger-submit-btn" class="btn primary small">Submit Answer</button>
+            <button id="ledger-skip-btn" class="btn small">Let AI Answer</button>
+        </div>
+    </div>
+
+    <div class="glass-container">
+        <header>
+            <h1>ApexApply <span class="accent">Command Center</span></h1>
+            <div class="status-indicator">
+                <span class="dot offline" id="status-dot"></span>
+                <span id="status-text">Idle</span>
+                <span id="mode-badge" class="badge">Simulation</span>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-target="tab-dashboard">Dashboard</button>
+            <button class="tab-btn" data-target="tab-applications">All Applications</button>
+            <button class="tab-btn" data-target="tab-applied">Applied Jobs</button>
+            <button class="tab-btn" data-target="tab-ledger">Knowledge Ledger</button>
+            <button class="tab-btn" data-target="tab-settings">Settings</button>
+            <button class="tab-btn" data-target="tab-credentials">Credentials</button>
+        </nav>
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tab-dashboard" class="tab-content active">
+
+            <!-- Pre-flight Checklist (Fix #1) -->
+            <section id="preflight-section" class="preflight-panel">
+                <h2>System Pre-flight</h2>
+                <div id="preflight-checks" class="preflight-grid">
+                    <div class="preflight-item loading">
+                        <span class="preflight-icon">...</span>
+                        <span class="preflight-name">Checking system...</span>
+                    </div>
+                </div>
+                <p id="preflight-hint" class="preflight-hint" style="display:none;"></p>
+            </section>
+
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Evaluated</div>
+                    <div class="kpi-value" id="kpi-evaluated">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Eligible</div>
+                    <div class="kpi-value" id="kpi-eligible" style="color: var(--accent);">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Applied</div>
+                    <div class="kpi-value" id="kpi-applied" style="color: var(--success);">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Skipped</div>
+                    <div class="kpi-value" id="kpi-skipped">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Errors</div>
+                    <div class="kpi-value" id="kpi-errors" style="color: var(--danger);">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Current Job</div>
+                    <div class="kpi-value" id="kpi-current-job" style="font-size:0.9rem;">-</div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <section class="controls">
+                    <h2>Agent Controls</h2>
+                    <p class="desc">Running in <span id="current-mode-text" class="accent">simulation</span> mode.</p>
+                    <div class="status-box" style="margin-bottom: 1rem; text-align: center;">
+                        <span id="resume-status-badge" class="badge">Checking...</span>
+                    </div>
+                    <div class="button-group">
+                        <button id="start-btn" class="btn primary" disabled>Start Agent</button>
+                        <button id="stop-btn" class="btn danger" disabled>Stop Agent</button>
+                    </div>
+                    <p id="start-hint" class="start-hint" style="display:none;">Fix pre-flight issues above to enable start.</p>
+                </section>
+
+                <section class="chart-section">
+                    <h2>Application Funnel</h2>
+                    <div style="height: 200px; display: flex; justify-content: center;">
+                        <canvas id="funnelChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <section class="tracking-section">
+                <h2>Live Tracking (Current Run)</h2>
+                <div class="table-container">
+                    <table id="tracking-table">
+                        <thead>
+                            <tr>
+                                <th>Job Details</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Tracker rows go here via SSE -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="terminal-container">
+                <div class="terminal-header">
+                    <span>Terminal Output</span>
+                    <button id="clear-btn" class="btn small">Clear</button>
+                </div>
+                <div class="terminal-body" id="terminal">
+                    <div class="log-entry system">System initialized. Ready.</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB 2: ALL APPLICATIONS -->
+        <div id="tab-applications" class="tab-content">
+            <div class="section-header">
+                <h2>All Applications Master Log</h2>
+                <button id="refresh-all-btn" class="btn small">Refresh</button>
+            </div>
+            <div class="table-container large">
+                <table id="all-table">
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Time</th>
+                            <th>Company</th>
+                            <th>Role</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Category</th>
+                            <th>Detail</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: APPLIED JOBS -->
+        <div id="tab-applied" class="tab-content">
+            <div class="section-header">
+                <h2>Applied Applications</h2>
+                <button id="refresh-applied-btn" class="btn small">Refresh</button>
+            </div>
+            <div class="table-container large">
+                <table id="applied-table">
+                    <thead>
+                        <tr>
+                            <th>Run ID</th>
+                            <th>Time</th>
+                            <th>Company</th>
+                            <th>Role</th>
+                            <th>Score</th>
+                            <th>Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: KNOWLEDGE LEDGER -->
+        <div id="tab-ledger" class="tab-content">
+            <div class="section-header">
+                <h2>Knowledge Ledger</h2>
+                <button id="refresh-ledger-btn" class="btn small">Refresh</button>
+            </div>
+            <!-- Pending questions section (Fix #6) -->
+            <div id="pending-questions-section" style="display:none;" class="pending-section">
+                <h3>Pending Questions - Agent needs your input</h3>
+                <div id="pending-questions-list"></div>
+            </div>
+            <div class="table-container large">
+                <table id="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Memory Prompt</th>
+                            <th>Agent Answer</th>
+                            <th>Source</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 5: SETTINGS -->
+        <div id="tab-settings" class="tab-content">
+            <div class="section-header">
+                <h2>Agent Configuration</h2>
+                <button id="save-settings-btn" class="btn small primary">Save Settings</button>
+            </div>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Job Source</label>
+                    <select id="set-job-source">
+                        <option value="greenhouse">Greenhouse</option>
+                        <option value="linkedin">LinkedIn</option>
+                    </select>
+                    <small>Greenhouse mode searches from your signed-in MyGreenhouse jobs hub.</small>
+                </div>
+                <div class="form-group">
+                    <label>Agent Mode</label>
+                    <select id="set-mode">
+                        <option value="simulation">Simulation (Mock Submit)</option>
+                        <option value="live">Live (Actual Submit)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Match Score Threshold</label>
+                    <input type="number" id="set-threshold" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Max Daily Applications</label>
+                    <input type="number" id="set-max-apps" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Search Queries (Comma Separated)</label>
+                    <textarea id="set-queries" rows="2"></textarea>
+                    <small>Exact job titles to search for in the selected source.</small>
+                </div>
+                <div class="form-group">
+                    <label>Target Companies (Comma Separated)</label>
+                    <textarea id="set-target-companies" rows="3"></textarea>
+                    <small>Only evaluate jobs from these top-tier companies.</small>
+                </div>
+                <div class="form-group">
+                    <label>Preferred Locations (Comma Separated)</label>
+                    <textarea id="set-locations" rows="2"></textarea>
+                    <small>These are parsed from the Knowledge Ledger at startup.</small>
+                </div>
+                <div class="form-group">
+                    <label>Blacklisted Companies (Comma Separated)</label>
+                    <textarea id="set-blacklist" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="set-stop-on-form-error">
+                        Stop entire agent when a form error occurs (after pause timeout or fatal form failure)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: CREDENTIALS -->
+        <div id="tab-credentials" class="tab-content">
+            <div class="section-header">
+                <h2>Company Logins</h2>
+                <button id="refresh-cred-btn" class="btn small">Refresh</button>
+            </div>
+            <div class="table-container large">
+                <table id="cred-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>User ID</th>
+                            <th>Password</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

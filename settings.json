@@ -1,0 +1,26 @@
+{
+  "mode": "simulation",
+  "job_source": "greenhouse",
+  "match_threshold": 65,
+  "max_daily_applications": 50,
+  "blacklisted_companies": [],
+  "search_queries": [
+    "Product Manager",
+    "Platform Product Manager",
+    "Senior Product Manager",
+    "Product Manager AI",
+    "Product Manager Payments",
+    "Product Manager Data Platform"
+  ],
+  "preferred_locations": [
+    "California",
+    "New York",
+    "New Jersey",
+    "Texas",
+    "Illinois",
+    "Washington"
+  ],
+  "target_companies": [],
+  "allow_easy_apply_only": false,
+  "stop_on_form_error": false
+}
